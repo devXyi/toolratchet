@@ -1,0 +1,55 @@
+name: toolratchet
+description: Fail the build when an MCP / LLM tool surface breaks callers, grows the token budget, or gains suspicious text.
+branding:
+  icon: lock
+  color: gray-dark
+inputs:
+  lock:
+    description: Lock file created with `toolratchet lock`.
+    default: toolratchet.lock.json
+  command:
+    description: Command that starts a stdio MCP server (used when `url` is empty).
+    required: false
+    default: ""
+  url:
+    description: URL of a Streamable HTTP MCP server.
+    required: false
+    default: ""
+  args:
+    description: Extra arguments for `toolratchet check` (for example `--ratchet --check-version`).
+    required: false
+    default: ""
+  version:
+    description: toolratchet version to install (empty = latest).
+    required: false
+    default: ""
+  python-version:
+    description: Python version to use.
+    default: "3.12"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install toolratchet
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        if [ -n "$VERSION" ]; then pip install "toolratchet==$VERSION"; else pip install toolratchet; fi
+    - name: Check tool surface
+      shell: bash
+      env:
+        LOCK: ${{ inputs.lock }}
+        COMMAND: ${{ inputs.command }}
+        URL: ${{ inputs.url }}
+        EXTRA: ${{ inputs.args }}
+      run: |
+        set -e
+        # shellcheck disable=SC2086
+        if [ -n "$URL" ]; then
+          toolratchet check --lock "$LOCK" --format github --summary-file "$GITHUB_STEP_SUMMARY" $EXTRA "$URL"
+        else
+          toolratchet check --lock "$LOCK" --format github --summary-file "$GITHUB_STEP_SUMMARY" $EXTRA -- $COMMAND
+        fi

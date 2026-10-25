@@ -1,0 +1,19 @@
+# Drop this into .github/workflows/tool-surface.yml in your MCP server repo.
+name: tool-surface
+on: pull_request
+
+jobs:
+  toolratchet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -r requirements.txt toolratchet
+      - name: Gate the tool surface
+        run: |
+          toolratchet check \
+            --format github \
+            --summary-file "$GITHUB_STEP_SUMMARY" \
+            --ratchet --check-version \
+            -- python my_server.py
